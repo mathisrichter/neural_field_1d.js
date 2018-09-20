@@ -26,13 +26,15 @@ var blue_color = "#268bd2";
 var stroke_weight = 5;
 var distance_per_sample;
 var display_threshold_y;
-var container_name = "container";
+var container_name = "DFTcontainer";
 var button_selective;
 var button_multi_peak;
 var button_working_memory;
 var button_help;
 var kernel_name_display;
 var canvas;
+
+var oscillators = [];
 
 
 class KernelSelectorButton
@@ -167,6 +169,15 @@ Array.prototype.SumArray = function (arr)
 
 function setup()
 {
+  for (let i = 0; i < sampling_points; i++)
+  {
+    oscillators[i] = new p5.Oscillator();
+    oscillators[i].setType('sine');
+    oscillators[i].freq(60 + 15 * i);
+    oscillators[i].amp(0);
+    oscillators[i].start();
+  }
+
   u = new Array(sampling_points);
   reinitializeActivation();
 
@@ -187,9 +198,9 @@ function setup()
   var working_memory_inh = gaussian(-20.0, 7, 60.0, 15);
   working_memory_kernel = working_memory_exc.SumArray(working_memory_inh);
 
-  button_selective = new KernelSelectorButton("selective kernel", 30, 30);
-  button_multi_peak = new KernelSelectorButton("multi peak kernel", 30, 30);
-  button_working_memory = new KernelSelectorButton("working memory kernel", 30, 30);
+  button_selective = new KernelSelectorButton("selective field", 30, 30);
+  button_multi_peak = new KernelSelectorButton("multi-peak field", 30, 30);
+  button_working_memory = new KernelSelectorButton("working memory field", 30, 30);
 
   // the selective kernel is the default
   button_selective.select(true);
@@ -262,6 +273,14 @@ function draw()
   for (let i = 0; i < u.length; i++)
   {
     vertex(distance_per_sample * i, -1.0 * u[i]);
+    if (u[i] > 0)
+    {
+      oscillators[i].amp(u[i] * 0.0015, 0.1);
+    }
+    else
+    {
+      oscillators[i].amp(0.0, 0.2);
+    }
   }
   endShape();
 
@@ -280,7 +299,7 @@ function draw()
     noStroke();
     fill(blue_color);
 
-    var manual_text = "Control input with your mouse.\nClick to fix inputs.\nScroll to change resting level.\nEscape resets field.";
+    var manual_text = "Control input with your mouse.\nClick to fix current input.\nScroll to change resting level.\nPress Escape to reset field.";
 
     text(manual_text, 20, 20, width - 50, height);
 
@@ -315,7 +334,7 @@ function mouseMoved()
 {
   var mousePosition = [constrain(mouseX, 0, width), constrain(mouseY, 0, height)];
   var amplitude = 0.0;
-  if (mousePosition[1] < display_threshold_y)
+  if (mousePosition[0] > 0 && mousePosition[0] < width && mousePosition[1] < display_threshold_y && mousePosition[1] > 0)
   {
     amplitude = -1.0 * (mousePosition[1] - display_threshold_y);
   }
@@ -424,7 +443,12 @@ function mouseWheel(event)
     {
       resting_level = -1 * (height / 2.) + padding;
     }
+
+    // block page scrolling
+    return false;
   }
+
+  return true;
 }
 
 
