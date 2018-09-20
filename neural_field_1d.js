@@ -12,10 +12,8 @@ var multi_peak_kernel;
 var working_memory_kernel;
 var global_inhibition_strength = -10.5;
 
-var UserStateEnum = Object.freeze({"beginning":1, "running":2, "restart":3});
-var user_state = UserStateEnum.beginning;
-
 var KernelStateEnum = Object.freeze({"selective":1, "multi_peak":2, "working_memory":3});
+var show_help;
 
 var base01_color = "#586e75";
 var base00_color = "#657b83";
@@ -32,6 +30,7 @@ var container_name = "container";
 var button_selective;
 var button_multi_peak;
 var button_working_memory;
+var button_help;
 var kernel_name_display;
 var canvas;
 
@@ -98,6 +97,59 @@ class KernelSelectorButton
   }
 }
 
+
+class HelpButton
+{
+  constructor(radius)
+  {
+    this.x = 0;
+    this.y = 0;
+    this.radius = radius;
+    this.hovered = false;
+  }
+
+  position(x, y)
+  {
+    this.x = x;
+    this.y = y;
+  }
+
+  hover(state)
+  {
+    this.hovered = state;
+  }
+
+  isMouseOver()
+  {
+    return dist(mouseX, mouseY, this.x, this.y) < button_help.radius;
+  }
+
+  draw()
+  {
+    var color = base01_color;
+
+    if (this.hovered)
+    {
+      color = base0_color;
+    }
+
+    push();
+
+    translate(this.x, this.y);
+
+    textAlign(LEFT, BOTTOM);
+    noStroke();
+    fill(color);
+    text("?", 10 - this.radius, -1 + this.radius);
+
+    stroke(color);
+    noFill();
+    ellipse(0, 0, this.radius * 2);
+    pop();
+  }
+}
+
+
 Array.prototype.SumArray = function (arr)
 {
   var sum = [];
@@ -143,6 +195,9 @@ function setup()
   button_selective.select(true);
   changeKernel(KernelStateEnum.selective);
   kernel_name_display = button_selective.label;
+
+  button_help = new HelpButton(20);
+  show_help = false;
 
   canvas = createCanvas(100, 100);
   canvas.parent(container_name);
@@ -190,7 +245,7 @@ function draw()
   }
   endShape();
 
-  if (user_state == UserStateEnum.beginning)
+  if (show_help)
   {
     noStroke();
     fill(yellow_color);
@@ -210,7 +265,7 @@ function draw()
   }
   endShape();
 
-  if (user_state == UserStateEnum.beginning)
+  if (show_help)
   {
     noStroke();
     fill(orange_color);
@@ -219,23 +274,18 @@ function draw()
   pop();
 
   // draw manual -----------------------------------------
-  push();
-  noStroke();
-  fill(blue_color);
-
-  var manual_text = "";
-  if (user_state == UserStateEnum.beginning)
+  if (show_help)
   {
-    manual_text = "Control input with your mouse. Click to fix inputs.";
-  }
-  else if (user_state == UserStateEnum.restarting)
-  {
-    manual_text = "Press Escape to reset the field.";
-  }
+    push();
+    noStroke();
+    fill(blue_color);
 
-  text(manual_text, 20, 20, width - 50, height);
+    var manual_text = "Control input with your mouse.\nClick to fix inputs.\nScroll to change resting level.\nEscape resets field.";
 
-  pop();
+    text(manual_text, 20, 20, width - 50, height);
+
+    pop();
+  }
 
   // draw buttons ----------------------------------------
   var margin = 30;
@@ -254,6 +304,10 @@ function draw()
   textAlign(RIGHT, BOTTOM);
   text(kernel_name_display, button_selective.x - margin, height - margin + 4);
   pop();
+
+  // draw help -------------------------------------------
+  button_help.position(margin + button_help.radius, height - margin - button_help.radius);
+  button_help.draw();
 }
 
 
@@ -308,6 +362,17 @@ function mouseMoved()
       kernel_name_display = button_working_memory.label;
     }
   }
+
+  if (button_help.isMouseOver())
+  {
+    button_help.hover(true);
+    show_help = true;
+  }
+  else
+  {
+    button_help.hover(false);
+    show_help = false;
+  }
 }
 
 
@@ -316,11 +381,6 @@ function mouseClicked()
   if (mouseY < display_threshold_y)
   {
     previous_input_sum = previous_input_sum.SumArray(current_input);
-
-    if (user_state == UserStateEnum.beginning)
-    {
-      user_state = UserStateEnum.restarting;
-    }
   }
 
   if (button_selective.isMouseOver())
@@ -347,11 +407,31 @@ function mouseClicked()
 }
 
 
+function mouseWheel(event)
+{
+  if (mouseX < width && mouseY < height)
+  {
+    resting_level += event.delta
+
+    var padding = 10;
+    var threshold_padding = 0.05;
+ 
+    if (resting_level > -threshold_padding)
+    {
+      resting_level = -threshold_padding
+    }
+    else if (resting_level < -1 * (height / 2.) + padding)
+    {
+      resting_level = -1 * (height / 2.) + padding;
+    }
+  }
+}
+
+
 function keyPressed()
 {
   if (keyCode == ESCAPE)
   {
-    user_state = UserStateEnum.beginning;
     reinitializeInput();
     reinitializeActivation();
   }
